@@ -1,4 +1,4 @@
-"""Check a Blender model against a sixth-gen budget and platform (runs inside Blender).
+"""Check a Blender model against a Dreamcast budget (runs inside Blender).
 
 Usage:
   blender -b MODEL.blend --python check_model.py -- --budget ASSET.budget.json
@@ -21,7 +21,7 @@ import bpy  # noqa: E402
 
 from model_rules import format_report, run_checks  # noqa: E402
 
-PLATFORMS_JSON = Path(__file__).resolve().parents[2] / "sixthgen-reference" / "platforms.json"
+PLATFORMS_JSON = Path(__file__).resolve().parents[2] / "dreamcast-reference" / "platforms.json"
 
 
 def script_args() -> list[str]:
@@ -103,7 +103,9 @@ def skin_info(ob, arm) -> dict:
     bones = {b.name for b in arm.data.bones if b.use_deform}
     groups = {g.index: g.name for g in ob.vertex_groups if g.name in bones}
     counts = [sum(1 for g in v.groups if g.group in groups and g.weight > 1e-4) for v in ob.data.vertices]
+    histogram = {str(k): counts.count(k) for k in set(counts)}
     return {"armature": arm.name, "max_influences": max(counts, default=0),
+            "influence_histogram": histogram,
             "multi_bone_vertices": sum(1 for c in counts if c > 1),
             "unweighted_vertices": sum(1 for c in counts if c == 0)}
 
@@ -154,15 +156,18 @@ def main() -> int:
     args = ap.parse_args(script_args())
 
     budget = json.loads(args.budget.read_text())
-    key = (args.platform or budget.get("platform") or "").lower().replace(" ", "").replace("-", "")
-    key = {"dreamcast": "dc", "playstation2": "ps2", "gamecube": "gc", "wii": "gc", "ogxbox": "xbox"}.get(key, key)
-    platforms = json.loads(PLATFORMS_JSON.read_text())
-    if key not in platforms or key.startswith("_"):
-        print(f"unknown platform '{key}': set \"platform\" in the budget (dc, ps2, gc, xbox)")
+    for requested in (args.platform, budget.get("platform")):
+        if requested and requested.lower().replace(" ", "").replace("-", "") not in ("dc", "dreamcast"):
+            print(f"unsupported platform '{requested}': this tool supports Dreamcast only")
+            return 2
+    if budget.get("target", "hardware") not in ("hardware", "style"):
+        print("budget target must be hardware or style")
         return 2
+    platforms = json.loads(PLATFORMS_JSON.read_text())
+    key = "dc"
     model = extract(set(args.objects.split(",")) if args.objects else None)
     report = run_checks(model, budget, platforms[key])
-    print(format_report(report))
+    print(format_report(report, strict=args.strict))
     if args.json:
         args.json.write_text(json.dumps({"model": model, "report": report}, indent=2))
     return 1 if report["build"] or (args.strict and report["style"]) else 0

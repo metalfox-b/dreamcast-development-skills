@@ -1,0 +1,22 @@
+{
+  "_about": "Dreamcast planning defaults; estimates are not hardware guarantees. See platforms.md and sources.md.",
+  "dc": {
+    "name": "Dreamcast",
+    "vram_bytes": 8388608,
+    "texture_budget_bytes": 6291456,
+    "texture_budget_source": "inference: 8 MB minus a 640x480 16-bit double framebuffer (~1.2 MB) and KOS PVR vertex buffers and OPBs (~1 MB). Read pvr_mem_available() on the device for the real figure",
+    "palette_ram_entries": 1024,
+    "max_texture": 1024,
+    "recommended_max_texture": 512,
+    "min_texture": 8,
+    "tile_modes": [
+      "repeat",
+      "mirror",
+      "clamp"
+    ],
+    "max_textures_per_polygon": 1,
+    "color_channels": 2,
+    "recommended_bone_influences": 1,
+    "recommended_bone_influences_source": "Dreamcast development practice, not a hardware limit; configure the actual exporter budget explicitly"
+  }
+}

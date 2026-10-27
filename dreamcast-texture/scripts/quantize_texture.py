@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Turn a source image into an authentic sixth-gen texture for one platform.
+"""Prepare a PNG for a Dreamcast texture encoder.
 
 Usage:
   quantize_texture.py --platform dc SRC OUT.<fmt>.png [--size 256x256] [--colors N]
@@ -7,21 +7,19 @@ Usage:
                       [--dither none|ordered] [--pal-format argb1555]
 
 Steps: box-resize to --size -> alpha to the format's bits -> reduce colors
-(median cut for palette formats, channel bits for direct ones, luminance for
-gray) -> optional ordered dither -> bleed edge colors into transparent
+(median cut for palette formats, channel bits for direct ones) -> optional ordered dither -> bleed edge colors into transparent
 texels -> write -> validate.
 
-Palette formats (pal4/pal8, psmt4/psmt8, ci4/ci8, p8) keep 1-bit alpha: one
-transparent entry. VQ, CMPR and DXT tags produce their base format's pixels
-(e.g. vq565 -> RGB565); the platform encoder (pvrtex, gxtexconv, a DXT
-compressor) runs at export. preview_480.py --vq shows the VQ loss now.
+Palette formats (pal4/pal8) keep 1-bit alpha: one transparent entry. VQ tags
+produce their base format's pixels (e.g. vq565 -> RGB565); a Dreamcast encoder
+such as pvrtex performs the VQ encoding at export. preview_480.py --vq shows the VQ loss now.
 
 --half-mirror x: SRC is the full symmetric image; OUT keeps the left half,
-  drawn with mirror repeat (not on PS2: the GS has no mirror mode).
+  drawn with mirror repeat.
 --lock: colors (#RRGGBB per line) that must survive. Defaults to OUT's lock
   file (npc_face.lock.txt) if present.
---palette-from: reuse another texture's exact palette, so both share one
-  palette bank (DC palette RAM is global: 1024 entries for every texture).
+--palette-from: restrict PNG colors to those in another texture. To share a
+  hardware palette bank, encode with the same .pal and verify palette indices.
 """
 from __future__ import annotations
 
@@ -31,7 +29,7 @@ from pathlib import Path
 
 from PIL import Image
 
-from sixfmt import (Fmt, format_from_name, get_format, lock_file_for, luminance, pal_entry_depth, parse_size,
+from dcfmt import (Fmt, format_from_name, get_format, lock_file_for, pal_entry_depth, parse_size,
                     platform, platform_key, read_lock_file, snap)
 from validate_textures import validate
 
@@ -146,31 +144,18 @@ def quantize_palette(px, w, h, fmt: Fmt, colors, locks, dither, pal_format, fixe
 def quantize_direct(px, w, h, fmt: Fmt, locks, dither) -> None:
     for i, p in enumerate(px):
         x, y = i % w, i // w
-        if fmt.kind == "rgb5a3":
-            p[3] = 255 if p[3] >= 248 else snap(p[3], 3)
-            bits = (5, 5, 5) if p[3] == 255 else (4, 4, 4)
-        else:
-            p[3] = snap_alpha(p[3], fmt.alpha_bits)
-            bits = fmt.rgb_bits
+        p[3] = snap_alpha(p[3], fmt.alpha_bits)
+        bits = fmt.rgb_bits
         if any(dist(p[:3], lock) <= LOCK_RADIUS for lock in locks):
             p[:3] = snap_rgb(min(locks, key=lambda q: dist(q, p[:3])), bits)
             continue
-        if fmt.kind == "gray":
-            v = luminance(*p[:3])
-            amp = 255 // ((1 << bits[0]) - 1) if dither == "ordered" and bits[0] < 8 else 0
-            v = snap(max(0, min(255, v + dither_offset(x, y, amp))), bits[0])
-            p[:3] = [v, v, v]
-        else:
-            amps = [255 // ((1 << b) - 1) if dither == "ordered" and b < 8 else 0 for b in bits]
-            p[:3] = [snap(max(0, min(255, p[c] + dither_offset(x, y, amps[c]))), bits[c]) for c in range(3)]
+        amps = [255 // ((1 << b) - 1) if dither == "ordered" and b < 8 else 0 for b in bits]
+        p[:3] = [snap(max(0, min(255, p[c] + dither_offset(x, y, amps[c]))), bits[c]) for c in range(3)]
     if any(p[3] < 255 for p in px):
         bleed(px, w, h)
         for p in px:
             if p[3] < 255:
-                bits = (4, 4, 4) if fmt.kind == "rgb5a3" else fmt.rgb_bits
-                p[:3] = [snap(p[c], bits[c]) for c in range(3)]
-                if fmt.kind == "gray":
-                    p[1] = p[2] = p[0]
+                p[:3] = [snap(p[c], fmt.rgb_bits[c]) for c in range(3)]
 
 
 def save(px, w, h, fmt: Fmt, path: Path) -> None:
@@ -192,7 +177,7 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("src", type=Path)
     ap.add_argument("out", type=Path)
-    ap.add_argument("--platform", required=True)
+    ap.add_argument("--platform", default="dc", help="dc or dreamcast")
     ap.add_argument("--format", help="override the format tag in OUT")
     ap.add_argument("--size", help="final stored size, e.g. 256x256 (default: SRC size)")
     ap.add_argument("--colors", type=int, help="palette size cap (default: the format's maximum)")
@@ -200,7 +185,8 @@ def main() -> int:
     ap.add_argument("--lock", type=Path)
     ap.add_argument("--palette-from", type=Path)
     ap.add_argument("--dither", choices=["none", "ordered"], default="none")
-    ap.add_argument("--pal-format", help="palette entry format, e.g. argb4444 on dc")
+    ap.add_argument("--pal-format", help="palette entry format, e.g. argb4444")
+    ap.add_argument("--allow-npot", action="store_true", help="allow valid strided direct or VQ textures")
     args = ap.parse_args()
 
     plat = platform_key(args.platform)
@@ -209,8 +195,8 @@ def main() -> int:
         ap.error(f"OUT needs a {plat} format tag (name.pal8.png) or pass --format")
     if args.half_mirror and "mirror" not in platform(plat)["tile_modes"]:
         ap.error(f"{platform(plat)['name']} has no mirror tile mode; store the full image")
-    if args.colors and fmt.kind == "pal" and args.colors > fmt.max_colors:
-        ap.error(f"{fmt.tag} allows at most {fmt.max_colors} colors")
+    if args.colors is not None and (fmt.kind != "pal" or not 1 <= args.colors <= fmt.max_colors):
+        ap.error(f"--colors requires a palette format and a value from 1 to {fmt.max_colors}")
     if args.palette_from and fmt.kind != "pal":
         ap.error("--palette-from only applies to palette formats")
 
@@ -233,15 +219,15 @@ def main() -> int:
     args.out.parent.mkdir(parents=True, exist_ok=True)
     save(px, w, h, fmt, args.out)
 
-    r = validate(args.out, plat, fmt, pal_format=args.pal_format)
-    verdict = "NOT AUTHENTIC" if r["errors"] else "AUTHENTIC"
+    r = validate(args.out, plat, fmt, allow_npot=args.allow_npot, pal_format=args.pal_format)
+    verdict = "FAIL" if r["errors"] else "PASS"
     print(f"[{verdict}] {args.out}  platform={plat} size={r.get('size')} format={fmt.tag} "
           f"colors={r.get('colors')} bytes={r.get('bytes')}")
     for e in r["errors"]:
         print(f"   ERROR: {e}")
     for wmsg in r["warnings"]:
         print(f"   WARN:  {wmsg}")
-    if fmt.kind in ("vq", "block"):
+    if fmt.kind == "vq":
         print(f"   NOTE:  pixels are {fmt.base}; the {fmt.tag} encode happens at export")
     return 1 if r["errors"] else 0
 

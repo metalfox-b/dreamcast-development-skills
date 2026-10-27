@@ -1,4 +1,4 @@
-"""Sixth-gen model rules, free of bpy so they can be tested without Blender.
+"""Dreamcast model rules, free of bpy so they can be tested without Blender.
 
 check_model.py extracts this from a .blend and calls run_checks():
 
@@ -43,9 +43,14 @@ def _is_pot(n: int) -> bool:
 
 
 def _stem(name: str) -> str:
-    """npc_face.pal8.png -> npc_face"""
-    parts = name.split(".")
-    return parts[0] if parts else name
+    """Strip a PNG suffix and recognized format tag while retaining dots in names."""
+    base = name.replace("\\", "/").rsplit("/", 1)[-1]
+    lower = base.lower()
+    for tag in ("pal4", "pal8", "rgb565", "argb1555", "argb4444", "vq565", "vq1555", "vq4444"):
+        suffix = f".{tag}.png"
+        if lower.endswith(suffix):
+            return base[:-len(suffix)]
+    return base[:-4] if lower.endswith(".png") else base
 
 
 def run_checks(model: dict, budget: dict, plat: dict) -> dict:
@@ -53,9 +58,13 @@ def run_checks(model: dict, budget: dict, plat: dict) -> dict:
     style: list[dict] = []
     objects = model.get("objects", [])
     budget_tex = {t["name"]: t for t in budget.get("textures", [])}
-    influences = budget.get("bone_influences", plat.get("bone_influences", 1))
+    influences = budget.get("bone_influences")
     channels = budget.get("color_channels", plat.get("color_channels", 2))
     max_tex = plat.get("max_textures_per_polygon", 1)
+    target = budget.get("target", "hardware")
+    budget_findings = build if target == "hardware" else style
+    if not objects:
+        build.append(_finding("no-meshes", "no mesh objects were found or selected"))
 
     total_tris = sum(o["tris"] for o in objects)
     total_export = sum(o["export_verts"] for o in objects)
@@ -71,22 +80,26 @@ def run_checks(model: dict, budget: dict, plat: dict) -> dict:
         if o.get("armature"):
             if o.get("unweighted_vertices"):
                 build.append(_finding("unweighted-vertices", "vertices with no bone weight", n, o["unweighted_vertices"]))
-            if o.get("max_influences", 0) > influences:
-                build.append(_finding("multi-bone-vertices", f"vertices weighted to more than {influences} bone(s); "
-                                      "sixth-gen skinning is one joint per vertex", n, o["multi_bone_vertices"]))
+            maximum = o.get("max_influences", 0)
+            histogram = o.get("influence_histogram")
+            if influences is not None and maximum > influences:
+                count = (sum(number for amount, number in histogram.items() if int(amount) > influences)
+                         if histogram is not None else None)
+                build.append(_finding("multi-bone-vertices", f"weights exceed the project limit of {influences} bone(s) per vertex", n, count))
+            elif influences is None and maximum > 1:
+                style.append(_finding("multi-bone-guidance", "multiple bone influences increase CPU skinning cost; "
+                                      "confirm the exporter supports them and profile the target", n,
+                                      o.get("multi_bone_vertices")))
         for m in o["materials"]:
             color_images = [i for i in m["images"] if i.get("input") in COLOR_INPUTS or i.get("input") is None]
-            if len(color_images) > max_tex:
-                if plat.get("multipass"):
-                    style.append(_finding("multipass", f"material '{m['name']}' blends {len(color_images)} textures: "
-                                          "one extra pass each on the GS (cheap fill, more VRAM)", n))
-                else:
-                    build.append(_finding("multi-texture", f"material '{m['name']}' blends {len(color_images)} textures; "
-                                          f"{plat['name']} allows {max_tex} per polygon. Layer polygons or bake one texture", n))
+            image_names = {i["name"] for i in color_images}
+            if len(image_names) > max_tex:
+                style.append(_finding("multi-texture", f"material '{m['name']}' uses {len(image_names)} color textures; "
+                                      "the PVR uses one texture per polygon pass. Confirm extra passes or bake a texture", n))
             modern = sorted({i["input"] for i in m["images"] if i.get("input") in MODERN_INPUTS})
             if modern:
                 style.append(_finding("modern-material", f"material '{m['name']}' drives {', '.join(modern)} with a texture; "
-                                      "sixth-gen shading lives in vertex colors and the color texture", n))
+                                      "Dreamcast shading often uses vertex colors and a color texture", n))
             if m["images"] and not o.get("uv_layers"):
                 style.append(_finding("no-uvs", f"textured material '{m['name']}' on a mesh with no UV map", n))
             for img in m["images"]:
@@ -113,31 +126,33 @@ def run_checks(model: dict, budget: dict, plat: dict) -> dict:
             style.append(_finding("split-heavy", f"{o['export_verts']} export verts from {o['verts']} positions: hard edges, "
                                   "UV seams and color seams each duplicate vertices. Weld and keep hard edges deliberate", n))
 
-    if budget.get("tris") and total_tris > budget["tris"]:
-        style.append(_finding("over-tri-budget", f"{total_tris} triangles; the budget is {budget['tris']}", count=total_tris))
-    if budget.get("verts") and total_export > budget["verts"]:
-        style.append(_finding("over-vert-budget", f"{total_export} export verts; the budget is {budget['verts']}",
+    if budget.get("tris") is not None and total_tris > budget["tris"]:
+        budget_findings.append(_finding("over-tri-budget", f"{total_tris} triangles; the budget is {budget['tris']}", count=total_tris))
+    if budget.get("verts") is not None and total_export > budget["verts"]:
+        budget_findings.append(_finding("over-vert-budget", f"{total_export} export verts; the budget is {budget['verts']}",
                               count=total_export))
-    if budget.get("materials") and len(materials) > budget["materials"]:
-        style.append(_finding("over-material-budget", f"{len(materials)} materials; the budget is {budget['materials']}",
+    if budget.get("materials") is not None and len(materials) > budget["materials"]:
+        budget_findings.append(_finding("over-material-budget", f"{len(materials)} materials; the budget is {budget['materials']}",
                               count=len(materials)))
     if budget.get("bones") is not None and model.get("bones", 0) > budget["bones"]:
-        style.append(_finding("over-bone-budget", f"{model['bones']} deform bones; the budget is {budget['bones']}",
+        budget_findings.append(_finding("over-bone-budget", f"{model['bones']} deform bones; the budget is {budget['bones']}",
                               count=model["bones"]))
-    share = plat.get("translucent_share")
+    share = budget.get("translucent_share")
     translucent = sum(o.get("translucent_tris", 0) for o in objects)
-    if share and total_tris and translucent / total_tris > share:
+    if share is not None and (isinstance(share, bool) or not isinstance(share, (int, float)) or not 0 <= share <= 1):
+        build.append(_finding("invalid-translucent-share", "translucent_share must be between 0 and 1"))
+    elif share is not None and total_tris and translucent / total_tris > share:
         style.append(_finding("translucent-share", f"{translucent} of {total_tris} triangles are translucent "
                               f"({100 * translucent / total_tris:.0f}%); ration transparency on {plat['name']} "
                               f"(guide: {100 * share:.0f}%). Use punch-through cutouts where you can", count=translucent))
 
-    return {"platform": plat["name"], "target": budget.get("target", "style"),
+    return {"platform": plat["name"], "target": target,
             "totals": {"tris": total_tris, "export_verts": total_export, "materials": len(materials),
                        "bones": model.get("bones", 0), "translucent_tris": translucent},
             "build": build, "style": style}
 
 
-def format_report(report: dict) -> str:
+def format_report(report: dict, strict: bool = False) -> str:
     t = report["totals"]
     lines = [f"{report['platform']} model check (target {report['target']}): {t['tris']} tris, "
              f"{t['export_verts']} export verts, {t['materials']} materials, {t['bones']} bones"]
@@ -146,6 +161,8 @@ def format_report(report: dict) -> str:
             where = f" [{f['object']}]" if f.get("object") else ""
             count = f" ({f['count']})" if f.get("count") is not None and str(f["count"]) not in f["message"] else ""
             lines.append(f"  {kind.upper():5} {f['code']}{where}: {f['message']}{count}")
-    verdict = "FAIL (build)" if report["build"] else ("PASS with style findings" if report["style"] else "PASS")
+    verdict = ("FAIL (build)" if report["build"] else
+               "FAIL (style)" if strict and report["style"] else
+               "PASS with style findings" if report["style"] else "PASS")
     lines.append(f"Verdict: {verdict}")
     return "\n".join(lines)

@@ -8,7 +8,7 @@ Usage:
 Per vertex: ambient occlusion (ray cast against every baked mesh, so the arm
 shadows the torso) mapped from a warm off-white to a cool purple, extra warm
 light on top-facing planes, darkening from each limb's root to its tip, and
-soft Rare-style random tints. This is a starting layer for an artist to paint over.
+soft subtle random color tints. This is a starting layer for an artist to paint over.
 
 Writes a byte-color, face-corner layer (default Col_Bake). Writing into an
 existing layer needs --force. Without --in-place, saves to OUT.blend

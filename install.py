@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Install the three skills and their shared reference without overwriting files."""
+"""Install the Dreamcast skills and their shared reference without overwriting files."""
 from __future__ import annotations
 
 import argparse
 import shutil
 from pathlib import Path
 
-FOLDERS = ("sixthgen-asset", "sixthgen-model-check", "sixthgen-texture", "sixthgen-reference")
+FOLDERS = ("dreamcast-dev", "dreamcast-asset", "dreamcast-model-check", "dreamcast-texture", "dreamcast-reference")
 
 
 def main() -> int:

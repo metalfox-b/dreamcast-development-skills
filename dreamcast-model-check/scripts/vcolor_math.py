@@ -1,4 +1,4 @@
-"""Vertex-color shading recipe (no bpy): AO + warm top light + limb gradient + Rare-style tints.
+"""Vertex-color shading recipe (no bpy): AO + warm top light + limb gradient + subtle tints.
 
 bake_vertex_colors.py measures AO, normals and limb position in Blender, then
 calls shade() per vertex. Colors are sRGB floats 0..1.
@@ -21,7 +21,7 @@ class Recipe:
     warm: tuple = hex_to_rgb("#FFF0D0")     # extra light on top-facing planes
     warm_amount: float = 0.35
     gradient: float = 0.15                  # darkening from limb root to tip
-    jitter: float = 0.06                    # Rare-style random hue drift
+    jitter: float = 0.06                    # subtle random hue drift
     noise_scale: float = 4.0                # tint patches per Blender unit
     floor: float = 0.18                     # darkest any channel may go
 

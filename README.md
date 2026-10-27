@@ -1,17 +1,18 @@
-# Sixth-Gen Asset Skills
+# Dreamcast Development Skills
 
-Three agent skills for creating and checking original assets in the style of Dreamcast, PlayStation 2, GameCube, and the original Xbox.
+Four agent skills for building native Sega Dreamcast games and creating their assets:
 
-- **sixthgen-asset**: plan an asset, set a budget, and follow it through modeling, texturing, effects, export, and capture.
-- **sixthgen-model-check**: check a Blender model against a budget and bake a starting vertex-color layer.
-- **sixthgen-texture**: plan formats and memory use, quantize images, validate textures, and preview them at 480p.
-- **sixthgen-reference**: shared platform notes, budget schema, style guidance, sources, and effect recipes. All three skills need this folder beside them.
+- **dreamcast-dev**: native game development, KallistiOS builds, profiling, emulator checks, and real-console verification.
+- **dreamcast-asset**: asset briefs, budgets, modeling, textures, effects, export, and capture.
+- **dreamcast-model-check**: Blender checks against a project budget and a starting vertex-color bake.
+- **dreamcast-texture**: Dreamcast PNG preparation, memory estimates, previews, and conversion guidance.
+- **dreamcast-reference**: shared platform notes, source citations, budgets, and effect recipes used by the skills.
 
-The hardware target calls for a real-console check. The style target uses the same constraints as guidance for an engine capture. Budget numbers are starting points, not guarantees of hardware performance: measure and adjust them for the project. The Python tools produce and validate PNGs; hardware texture encoding and model export require project-specific tools.
+The package targets the Dreamcast only. It does not include a game engine, the KallistiOS SDK, a cross compiler, an emulator, or a universal model exporter. Use the project's own tools and loader. A passing host-side check or an emulator run does not prove an asset works on a physical console.
 
 ## Install
 
-Clone or download this repository, open a terminal in its folder, and install all four folders together. For Codex:
+Clone or download this repository, open a terminal in its folder, and install all five folders together. For Codex:
 
 ```sh
 python3 install.py --target "$HOME/.codex/skills"
@@ -23,24 +24,24 @@ For Claude Code:
 python3 install.py --target "$HOME/.claude/skills"
 ```
 
-The installer stops if any destination already exists, so it will not overwrite existing skills. Restart the agent or start a new session if necessary for it to discover the skills. You can also copy the four folders manually into another compatible agent's skills directory, keeping them as siblings.
+The installer checks all destinations before copying and will not overwrite existing folders. Restart the agent or start a new session if necessary. You can also copy the five folders manually into a compatible agent's skills directory, keeping them as siblings.
 
-## Requirements
+## Requirements and checks
 
-- Python 3.9 or later.
-- Pillow for the texture scripts; NumPy is also needed for vector-quantization previews. Install them in your preferred Python environment with `python3 -m pip install Pillow numpy`.
-- Blender 4.1 or later for model checking and the vertex-color bake.
-- An appropriate exporter, texture converter, and development tools for the target engine or console.
-
-Run the included checks from the repository root:
+Use Python 3.9 or later; install Pillow for texture tools and NumPy for VQ previews. Blender 4.1 or later is needed for model checking and the vertex-color bake. Native game builds additionally need the project's Dreamcast SDK, compiler, exporter, and texture converter.
 
 ```sh
-python3 sixthgen-model-check/scripts/test_rules.py
-python3 sixthgen-texture/scripts/test_sixfmt.py
+python3 -m pip install Pillow numpy
+python3 dreamcast-model-check/scripts/test_rules.py
+python3 dreamcast-texture/scripts/test_dcfmt.py
+python3 dreamcast-texture/scripts/test_texture_workflow.py
+python3 dreamcast-model-check/scripts/test_blender_workflow.py
 ```
 
-The model rules and format tests run without Blender or Pillow. See each `SKILL.md` for workflow and command details, and [the source notes](sixthgen-reference/techniques.md) for technical references and credits.
+The last two tests use Blender or `pvrtex` when available; set `BLENDER` or `PVRTEX` to the executable path if needed. Missing tools are reported as skipped. The tests generate their own temporary sample assets and do not test a physical console.
+
+See [source notes](dreamcast-reference/sources.md) for direct technical documentation and practitioner attribution. The retained budgets are planning defaults that require project-specific measurement.
 
 ## License
 
-The files in this repository are provided under the [MIT License](LICENSE). Referenced third-party projects, documentation, trademarks, and artwork remain subject to their own rights and licenses.
+The files in this repository are provided under the [MIT License](LICENSE). Referenced third-party projects, documentation, trademarks, and artwork retain their own rights and licenses.

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Preview a sixth-gen texture as the console would show it on a 640x480 frame.
+"""Preview a Dreamcast texture on an approximate 640x480 frame.
 
 Usage:
   preview_480.py --platform dc TEX [--tile U,V] [--repeat U,V] [--shade TOP,BOTTOM]
@@ -16,7 +16,7 @@ these, so the preview is the reference for style targets.
 --vq         simulate DC VQ compression (256 codewords of 2x2 texels, k-means)
              so the loss can be judged before pvrtex runs. Needs numpy.
 --fb16       write the frame through an RGB565 framebuffer with ordered
-             dither (PS2 16-bit framebuffers need dither; DC outputs RGB565).
+             dither. Actual display output depends on the game and video mode.
 
 Writes <name>.preview.png beside TEX (or --out), at 2x with nearest scaling.
 """
@@ -28,7 +28,7 @@ from pathlib import Path
 
 from PIL import Image, ImageOps
 
-from sixfmt import format_from_name, platform, platform_key, snap, stem_without_tag
+from dcfmt import format_from_name, platform, platform_key, snap, stem_without_tag
 
 BAYER4 = [[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]]
 SIZES = (64, 128, 256)
@@ -39,13 +39,18 @@ def vq_simulate(img: Image.Image, codewords: int = 256, iterations: int = 10) ->
 
     a = np.asarray(img.convert("RGBA"), dtype=np.float32)
     h, w = a.shape[:2]
+    if h % 2 or w % 2:
+        raise ValueError("VQ preview requires even image dimensions")
     blocks = a.reshape(h // 2, 2, w // 2, 2, 4).transpose(0, 2, 1, 3, 4).reshape(-1, 16)
     rng = np.random.default_rng(0)
     k = min(codewords, len(blocks))
     centers = blocks[rng.choice(len(blocks), k, replace=False)].copy()
     for _ in range(iterations):
-        d = ((blocks[:, None, :] - centers[None, :, :]) ** 2).sum(-1)
-        labels = d.argmin(1)
+        labels = np.empty(len(blocks), dtype=np.int32)
+        for start in range(0, len(blocks), 512):
+            chunk = blocks[start:start + 512]
+            d = ((chunk[:, None, :] - centers[None, :, :]) ** 2).sum(-1)
+            labels[start:start + len(chunk)] = d.argmin(1)
         for c in range(k):
             members = blocks[labels == c]
             if len(members):
@@ -113,7 +118,7 @@ def fb16(img: Image.Image) -> Image.Image:
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("tex", type=Path)
-    ap.add_argument("--platform", required=True)
+    ap.add_argument("--platform", default="dc", help="dc or dreamcast")
     ap.add_argument("--tile", default="repeat,repeat")
     ap.add_argument("--repeat", default="1,1")
     ap.add_argument("--shade")
@@ -125,16 +130,24 @@ def main() -> int:
 
     plat = platform_key(args.platform)
     modes = args.tile.split(",")
-    if "mirror" in modes and "mirror" not in platform(plat)["tile_modes"]:
-        ap.error(f"{platform(plat)['name']} has no mirror tile mode")
+    if len(modes) != 2 or any(mode not in platform(plat)["tile_modes"] for mode in modes):
+        ap.error("--tile needs two modes: repeat, mirror, or clamp")
+    try:
+        repeat = [int(v) for v in args.repeat.split(",")]
+    except ValueError:
+        ap.error("--repeat needs two positive integers")
+    if len(repeat) != 2 or any(v < 1 for v in repeat):
+        ap.error("--repeat needs two positive integers")
     fmt = format_from_name(args.tex, plat)
     img = Image.open(args.tex).convert("RGBA")
     if args.vq or (fmt and fmt.kind == "vq"):
         try:
             img = vq_simulate(img)
         except ImportError:
-            print("   WARN:  numpy is missing (python3 -m pip install numpy); previewing without VQ loss")
-    img = tiled(img, modes, [int(v) for v in args.repeat.split(",")])
+            ap.error("VQ preview needs numpy (python3 -m pip install numpy)")
+        except ValueError as exc:
+            ap.error(str(exc))
+    img = tiled(img, modes, repeat)
     if args.shade:
         top, bottom = (hex_rgb(c) for c in args.shade.split(","))
         img = shade(img, top, bottom)
