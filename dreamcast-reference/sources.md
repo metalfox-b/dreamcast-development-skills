@@ -25,3 +25,18 @@ These links point to external material; its authors retain their rights. The soc
 - [Rogério Perdiz on lens-flare geometry](https://x.com/rogerioperdiz/status/2093738691063656702).
 
 The 6 MiB default texture budget, suggested asset sizes, and other working budgets are project planning estimates. The source material does not establish a universal safe triangle count, universal translucency percentage, or automatic hardware certification.
+
+## Credits
+
+[gsimone (Gianmarco Simone)](https://github.com/gsimone), also [ggsimm](https://x.com/ggsimm), inspired the following original additions:
+
+- Tight alpha-card hulls: [diet-sprite](https://github.com/gsimone/diet-sprite).
+- Zero-tolerance image comparisons and toolchain locks: [typegpu-crt-shaders](https://github.com/gsimone/typegpu-crt-shaders), method and lock-file ideas only.
+- Capture contact sheets and transition review: [contact-sheet skill](https://github.com/gsimone/skills/tree/main/skills/contact-sheet), idea only.
+- Display-chain previews: [CRT post](https://x.com/ggsimm/status/2113938086807715841) and [frame-processing post](https://x.com/ggsimm/status/2117347384070164890).
+- Dreamcast scene mood presets: [mood-accurate post](https://x.com/ggsimm/status/2117302468035928324).
+- Era contrast: [frame processing](https://x.com/ggsimm/status/2117347384070164890) and [fill discussion](https://x.com/ggsimm/status/2117342373747298342).
+
+No code or text from gsimone's repositories was copied.
+
+Timothy Lottes's public-domain CRT Lottes supplied the optional aperture-grille mask idea, implemented in Python. Hyllian's CRT Hyllian (MIT) was reviewed as a reference; no Hyllian code or math is used. See [third-party notes](../THIRD_PARTY.md). [Project Nayuki](https://www.nayuki.io/page/convex-hull-algorithm) receives idea credit as an Andrew monotone-chain algorithm reference; no code was used.

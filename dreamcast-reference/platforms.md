@@ -17,12 +17,17 @@ The Dreamcast uses an SH-4 CPU and PowerVR2 graphics. KallistiOS (KOS) is a home
 - One joint per vertex is a reported common practice, **not a Dreamcast hardware limit**. Multi-bone skinning can be implemented in software if the engine supports it; weigh its cost on the SH-4 and set an explicit limit only when the exporter or project requires one. See the [source notes](sources.md#skinning-and-geometry).
 - Vertex colors, baked lighting, texture reuse, and simple geometry-based effects are useful style and performance techniques, not automatic proof that an asset will run at a given frame rate.
 
+### Era contrast
+
+PS2 and GameCube full-frame recipes do not transfer directly to Dreamcast: resizing and re-blending the frame for bloom, depth of field, accumulation blur or full-screen grading needs render-to-texture storage taken from the texture pool, followed by full-screen translucent quads with substantial translucent fill cost. These are not default Dreamcast recipes. Additive glow sprites or halo quads, and modifier-volume shadows or light volumes, are authentic alternatives when supported by the renderer; profile them. This distinction is informed by gsimone's [frame-processing post](https://x.com/ggsimm/status/2117347384070164890) and [fill discussion](https://x.com/ggsimm/status/2117342373747298342), not measured performance figures for this project.
+
 ## Project profile
 
 Keep this information with the project. Do not add private project details to the shared skill package.
 
 ```text
 Project:
+Toolchain lock path and verification result:
 KOS version / compiler / engine:
 Target video mode and frame-rate goal:
 Asset directory and source ownership:
@@ -35,3 +40,5 @@ Emulator launch method:
 Physical hardware loader, capture, and test procedure:
 Known limitations and verification status:
 ```
+
+Copy [toolchain.lock.json](toolchain.lock.json) into the project and replace its placeholder paths. `files` maps paths relative to the lock to SHA-256 values; include SDK/build identity files, compiler, converters, exporter, inputs and generated assets as appropriate. `versions` and `commits` hold supplied assertions; `generated_assets` records input/output relationships and exact options. Run `python3 path/to/dreamcast-dev/scripts/toolchain_lock.py record toolchain.lock.json --version compiler=VERSION --commit KOS=COMMIT`, then `verify toolchain.lock.json` before rebuilding. Verification checks file contents, not the truth of supplied version strings or reproducibility of a build. Missing or changed files fail. Lock-file idea credit: gsimone's typegpu-crt-shaders.

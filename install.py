@@ -6,6 +6,8 @@ import argparse
 import shutil
 from pathlib import Path
 
+LICENSE_FILES = ("LICENSE", "LICENSE-CONTENT", "NOTICE", "THIRD_PARTY.md")
+
 FOLDERS = ("dreamcast-dev", "dreamcast-asset", "dreamcast-model-check", "dreamcast-texture", "dreamcast-reference")
 
 
@@ -19,12 +21,15 @@ def main() -> int:
     if conflicts:
         parser.exit(1, "Destination already exists; nothing installed:\n" + "\n".join(map(str, conflicts)) + "\n")
     missing = [source / name for name in FOLDERS if not (source / name).is_dir()]
+    missing += [source / name for name in LICENSE_FILES if not (source / name).is_file()]
     if missing:
-        parser.exit(1, "Source folder missing; nothing installed:\n" + "\n".join(map(str, missing)) + "\n")
+        parser.exit(1, "Source folder or license file missing; nothing installed:\n" + "\n".join(map(str, missing)) + "\n")
     target.mkdir(parents=True, exist_ok=True)
     for name in FOLDERS:
         shutil.copytree(source / name, target / name, ignore=shutil.ignore_patterns("__pycache__", "*.pyc", ".DS_Store"))
         print(f"Installed {target / name}")
+    for name in LICENSE_FILES:
+        shutil.copy2(source / name, target / "dreamcast-reference" / name)
     return 0
 
 

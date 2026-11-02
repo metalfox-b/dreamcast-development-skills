@@ -1,0 +1,6 @@
+{
+  "versions": {"compiler": "record the compiler version", "pvrtex": "record build and options", "exporter": "record version"},
+  "commits": {"KOS": "record commit", "ports": "record commit"},
+  "files": {"path/to/converter": null, "assets/source.png": null, "assets/encoded.dt": null},
+  "generated_assets": [{"output": "assets/encoded.dt", "inputs": ["assets/source.png"], "options": "record exact converter options"}]
+}

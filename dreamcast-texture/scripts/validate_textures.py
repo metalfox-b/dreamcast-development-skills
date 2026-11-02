@@ -138,7 +138,7 @@ def collect(paths: list[Path]) -> list[Path]:
     files: list[Path] = []
     for p in paths:
         files += sorted(p.rglob("*.png")) if p.is_dir() else [p]
-    return [f for f in files if not f.name.endswith(".preview.png")]
+    return [f for f in files if not f.name.endswith((".preview.png", ".composite-sim.png", ".svideo-sim.png"))]
 
 
 def check_set(results: list[dict], plat: str, target: str, budget_bytes: int | None) -> dict:

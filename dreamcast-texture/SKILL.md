@@ -33,3 +33,21 @@ From this skill directory:
    ```
    The paletted conversion also writes a `.pal` file. Use a shared palette with `pvrtex -P` where the game expects a shared bank, and confirm the encoded indices and game palette setup. The `.dt` container is not automatically understood by every loader. `--allow-npot` allows valid non-power-of-two direct or VQ strided inputs; the encoder and runtime must agree on stride, and strided mipmaps are not supported by this helper.
 5. **Run and review.** Load the converted texture in the actual game, inspect it in a representative scene, and measure runtime memory. Report host-side conversion, emulator behavior, and real-console behavior separately.
+
+## Card hulls and exact comparison
+
+```sh
+python3 scripts/fit_card_hull.py foliage.png --vertices 8 --threshold 0 --out foliage.hull.json
+python3 scripts/fit_card_hull.py smoke.png --grid 4x4 --shared --out smoke.hull.json
+python3 scripts/compare_images.py before.png after.png --out difference.png --meta device=console --meta video=VGA
+```
+
+Card hulls cover whole pixels whose alpha is strictly above the threshold. The original Andrew monotone-chain implementation starts from pixel corners and expands during reduction, never cutting into the occupied hull. The vertex target defaults to 8, with a minimum of 3; empty frames have no vertices or triangles. If reduction stalls, a conservative bounding rectangle is used when the budget permits. A triangle that cannot cover the pixels within image bounds fails clearly; pad the source or increase the limit. JSON contains frame-local pixel vertices, UVs with U right and V down from the top left, fan triangles, polygon and full-quad areas, and saved fraction. Flipbook order runs left to right, then downward. Apply the frame's atlas offset and scale to the local UVs; `--shared` covers every frame with one polygon. Check winding against the engine's culling convention. Bilinear filtering can sample beyond the threshold silhouette; choose a conservative threshold or add padding for the project's filtering. Idea credit: gsimone's diet-sprite; algorithm reference: Project Nayuki. No source code was copied.
+
+The image comparison requires equal dimensions and never resizes. Its unamplified RGB difference PNG and JSON record zero-tolerance decoded-byte errors, input SHA-256 hashes and repeated `--meta key=value` evidence. Alpha is excluded unless `--include-alpha` is set; then errors include alpha and a separate `.alpha.png` shows its unamplified difference. `exact` means zero differing selected bytes; it does not establish hardware accuracy. Use aligned captures with matching settings and record differences in device or capture chain. Method idea: gsimone's typegpu-crt-shaders.
+
+## Display simulations and scene moods
+
+`preview_480.py --display vga` is the unchanged default: a sharp 640x480 frame saved at 2x. Opt-in `--display svideo` or `--display composite` separates luma and chroma, softens chroma horizontally more than luma, and adds light scanlines. These are display simulations, not calibrated signal emulation. Optional `--shadow-mask` uses a Lottes-style aperture grille. The image carries a visible DISPLAY SIMULATION label and a `.svideo-sim.png` or `.composite-sim.png` suffix, including with `--out`. Never bake simulations into assets or use them as captures. No LUTs or Hyllian math are used.
+
+Validate the [example scene mood](../dreamcast-reference/mood-preset.example.json) with `python3 scripts/validate_mood_preset.py ../dreamcast-reference/mood-preset.example.json`. The [recipe](../dreamcast-reference/effects.md#scene-mood-presets) maps only to fog, vertex colors, sky geometry or textures, and optional shared palette-bank swaps. The validator rejects unknown keys and post-effect controls; an engine must still implement and verify the preset.

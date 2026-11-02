@@ -22,3 +22,7 @@ These are design and performance prompts, not a promise of hardware performance.
 - [ ] Animation, geometry, collision, and material behavior match the project brief.
 - [ ] Busy scenes stay within the project's measured CPU, frame-time, RAM, and VRAM budgets.
 - [ ] Emulation and hardware results are labeled separately; a Blender render or 480p texture preview is not a console capture.
+
+- [ ] Record exact image differences with `dreamcast-texture/scripts/compare_images.py` for VQ preview versus pvrtex-decoded output, emulator versus console capture, and before/after asset changes. Keep dimensions and alignment equal, record hashes, versions and capture settings, and explain capture-chain differences.
+- [ ] Review videos with `dreamcast-dev/scripts/capture_contact_sheet.py capture.mkv --out review`. Inspect `report.md`, `transitions.csv` and `contact-sheet.png` for NO CHANGE, TINY CHANGE (under 0.05 percent of pixels), and possible one-frame pops. Motion, intentional holds and capture noise can also trigger flags; inspect the video in context. Missing ffmpeg or ffprobe is a reported skip.
+- [ ] Optional `preview_480.py --display svideo|composite` outputs are labeled display simulations. Never bake these into assets or use them as captures. VGA remains the sharp default; no simulation proves the console's display output.

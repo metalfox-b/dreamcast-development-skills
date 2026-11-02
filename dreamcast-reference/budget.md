@@ -30,6 +30,7 @@ Store an asset budget with the project. The example is a **starting point**, not
 | `bone_influences` | Optional exporter or project limit per vertex. Omit when unknown: multi-bone weights then produce guidance rather than a build failure. |
 | `color_channels` | Optional working limit; otherwise two is a review heuristic. Confirm the layer actually read by the exporter. |
 | `textures` | Name, PNG size, format tag, planned mipmaps, and tile modes. `npot` identifies a project-approved strided texture for model checks. |
+| `card_hull_vertices` | Optional per-card vertex planning limit, at least 3; pass it to `fit_card_hull.py --vertices`. The budget checker does not enforce it. |
 | `untextured`, `effects` | Documentation for the asset; the model checker does not verify these lists. |
 | `translucent_share` | Optional project-specific *triangle-count* review threshold between 0 and 1. It is not a measure of screen-space overdraw or a hardware limit. |
 
