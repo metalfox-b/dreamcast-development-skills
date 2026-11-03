@@ -6,7 +6,7 @@ Four agent skills for building native Sega Dreamcast games and creating their as
 - **dreamcast-asset**: asset briefs, budgets, modeling, textures, effects, export, and capture.
 - **dreamcast-model-check**: Blender checks against a project budget and a starting vertex-color bake.
 - **dreamcast-texture**: Dreamcast PNG preparation, memory estimates, previews, and conversion guidance.
-- **dreamcast-reference**: shared platform notes, source citations, budgets, and effect recipes used by the skills.
+- **dreamcast-reference**: shared platform notes, source citations, budgets, effect recipes, and autotiling notes used by the skills.
 
 The package targets the Dreamcast only. It does not include a game engine, the KallistiOS SDK, a cross compiler, an emulator, or a universal model exporter. Use the project's own tools and loader. A passing host-side check or an emulator run does not prove an asset works on a physical console.
 
@@ -38,10 +38,25 @@ python3 dreamcast-texture/scripts/test_texture_workflow.py
 python3 dreamcast-model-check/scripts/test_blender_workflow.py
 ```
 
-The last two tests use Blender or `pvrtex` when available; set `BLENDER` or `PVRTEX` to the executable path if needed. Missing tools are reported as skipped. The tests generate their own temporary sample assets and do not test a physical console.
+Additional behavior checks:
 
-See [source notes](dreamcast-reference/sources.md) for direct technical documentation and practitioner attribution. The retained budgets are planning defaults that require project-specific measurement.
+```sh
+python3 test_install.py
+python3 dreamcast-texture/scripts/test_fit_card_hull.py
+python3 dreamcast-texture/scripts/test_compare_images.py
+python3 dreamcast-texture/scripts/test_preview_display.py
+python3 dreamcast-texture/scripts/test_validate_mood_preset.py
+python3 dreamcast-texture/scripts/test_autotile.py
+python3 dreamcast-dev/scripts/test_toolchain_lock.py
+python3 dreamcast-dev/scripts/test_capture_contact_sheet.py
+```
+
+Capture review uses local ffmpeg and ffprobe; its integration test skips when either is absent. The installer includes the four license and notice files in the installed reference folder.
+
+The existing workflow tests use Blender or `pvrtex` when available; set `BLENDER` or `PVRTEX` to the executable path if needed. Missing tools are reported as skipped. The tests generate their own temporary sample assets and do not test a physical console.
+
+See [source notes](dreamcast-reference/sources.md) for direct technical documentation and practitioner attribution. See the [Credits](dreamcast-reference/sources.md#credits) for technique ideas and upstream display references. The retained budgets are planning defaults that require project-specific measurement.
 
 ## License
 
-The files in this repository are provided under the [MIT License](LICENSE). Referenced third-party projects, documentation, trademarks, and artwork retain their own rights and licenses.
+Python code, including scripts, installer and tests, is under [PolyForm Noncommercial 1.0.0](LICENSE). Skills, reference material, README and other documentation are under [CC BY-NC 4.0](LICENSE-CONTENT). See [NOTICE](NOTICE) for the required copyright notice and [THIRD_PARTY.md](THIRD_PARTY.md) for third-party rights.

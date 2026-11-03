@@ -6,6 +6,8 @@ Use the game's existing framework and build. For a new homebrew project, [Kallis
 
 Start with a small, observable change in the existing game or an SDK example. Build with the project's actual command and check that it produces the intended Dreamcast binary. A successful compile establishes only that the toolchain produced output; the emulator and console runs below are separate evidence. Do not silently replace a user's engine, SDK, ROM inputs, or build profile.
 
+Record and verify file hashes with the [toolchain lock](platforms.md#project-profile) and `dreamcast-dev/scripts/toolchain_lock.py`; keep exact converter options with the generated-asset records.
+
 ## Rendering, memory, and assets
 
 - Choose the existing PVR or graphics abstraction deliberately. Respect the renderer's opaque, cutout, and translucent ordering, texture formats, alignment, and clipping. The official KOS examples include PVR rendering, palettes, and render-to-texture.
@@ -20,5 +22,7 @@ Start with a small, observable change in the existing game or an SDK example. Bu
 2. **Cross-build:** build using the pinned Dreamcast environment. Record the binary and revision; do not imply it ran.
 3. **Emulator:** launch the intended build, load the asset or scene, and exercise the requested interaction. Record the emulator and settings. An emulator result does not establish hardware correctness or performance.
 4. **Real console:** use the project's supported loader or media, controller, and display. Record the console and video mode, revision, scene, observable interaction, frame behavior, available VRAM, and any audio or storage result relevant to the task. Repeat representative busy scenes. Record failures and missing access rather than substituting an emulator.
+
+Use `dreamcast-texture/scripts/compare_images.py first.png second.png --out difference.png --meta device=console` to record exact differences and input hashes. Compare VQ preview against pvrtex-decoded output, emulator against console capture, or before and after an asset change; keep sizes and alignment equal, record tool versions and capture settings, and label each device separately. Exact equality is evidence about those decoded images only.
 
 For visual acceptance, capture the actual game on the target device when possible. A generated texture preview or desktop render can guide iteration but does not establish the final appearance or frame rate on the console.
