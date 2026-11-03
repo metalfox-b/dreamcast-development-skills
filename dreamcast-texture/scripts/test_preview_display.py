@@ -36,22 +36,26 @@ class PreviewDisplay(unittest.TestCase):
             explicit = root/'explicit.png'
             self.assertEqual(subprocess.run(cmd+['--display', 'vga', '--out', str(explicit)], capture_output=True).returncode, 0)
             self.assertEqual(explicit.read_bytes(), baseline.read_bytes())
-            for mode in ('svideo', 'composite'):
-                result = subprocess.run(cmd+['--display', mode], capture_output=True, text=True)
+            for mode, extra, suffix, text in (('svideo', [], '-480i', ' 480i'), ('composite', [], '-480i', ' 480i'),
+                                              ('composite', ['--no-interlaced'], '', '')):
+                result = subprocess.run(cmd+['--display', mode]+extra, capture_output=True, text=True)
                 self.assertEqual(result.returncode, 0, result.stderr)
-                path = root/f'source.preview.{mode}-sim.png'
+                path = root/f'source.preview.{mode}{suffix}-sim.png'
                 self.assertTrue(path.exists())
                 with Image.open(path) as simulation:
                     small = simulation.resize((640, 480), Image.Resampling.NEAREST)
                     # Match the actual burned label against independently drawn text.
                     label = Image.new('RGB', (232, 18), 'black')
-                    ImageDraw.Draw(label).text((4, 4), 'DISPLAY SIMULATION: '+mode, fill='white')
+                    ImageDraw.Draw(label).text((4, 4), 'DISPLAY SIMULATION: '+mode+text, fill='white')
                     self.assertEqual(small.crop((4, 4, 236, 22)).tobytes(), label.tobytes())
                 self.assertEqual(default.read_bytes(), baseline.read_bytes())
                 self.assertNotIn(path, collect([root]))
             result = subprocess.run(cmd+['--display', 'composite', '--out', str(root/'custom.png')], capture_output=True)
             self.assertEqual(result.returncode, 0)
-            self.assertTrue((root/'custom.composite-sim.png').exists())
+            self.assertTrue((root/'custom.composite-480i-sim.png').exists())
+            # Default-on smoothing really differs from the progressive simulation.
+            with Image.open(root/'source.preview.composite-480i-sim.png') as a, Image.open(root/'source.preview.composite-sim.png') as b:
+                self.assertNotEqual(a.tobytes(), b.tobytes())
 
     def test_bandwidth_and_mask_are_real_changes(self):
         frame = Image.new('RGB', (64, 32))
@@ -107,9 +111,10 @@ class InterlaceAndBanding(unittest.TestCase):
             source = root/'s.png'
             Image.new('RGBA', (16, 16), (200, 80, 40, 255)).save(source)
             cmd = [sys.executable, str(Path(__file__).with_name('preview_480.py')), str(source)]
-            bad = subprocess.run(cmd+['--interlaced'], capture_output=True, text=True)
-            self.assertNotEqual(bad.returncode, 0)
-            self.assertIn('VGA', bad.stderr)
+            for flag in ('--interlaced', '--no-interlaced'):
+                bad = subprocess.run(cmd+['--display', 'vga', flag], capture_output=True, text=True)
+                self.assertNotEqual(bad.returncode, 0)
+                self.assertIn('VGA', bad.stderr)
             self.assertNotEqual(subprocess.run(cmd+['--no-dither'], capture_output=True).returncode, 0)
             ok = subprocess.run(cmd+['--display', 'svideo', '--interlaced', '--fb16', '--no-dither'], capture_output=True, text=True)
             self.assertEqual(ok.returncode, 0, ok.stderr)

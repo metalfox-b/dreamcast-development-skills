@@ -24,9 +24,15 @@ PS2 and GameCube full-frame recipes do not transfer directly to Dreamcast: resiz
 gsimone's [sixth-gen frame thread](https://x.com/ggsimm/status/2117695690373517750) lists the usual full-frame stack: low internal resolution, threshold-and-blur bloom, depth blur, god rays from a quarter-size pass, 16-bit color with ordered dither, deflicker, composite smear and scanlines. On Dreamcast, only some of that stack is native:
 
 - 16-bit color is native. The framebuffer can be RGB565 or RGB555 with a hardware dither bit (`vid_set_dithering` in KOS). Banding with dither off is a style choice; preview it with `preview_480.py --fb16 --no-dither`. The PS2's 5-5-5-1 and the GameCube's 6-bit-per-channel modes band differently, so do not copy their look as Dreamcast truth.
-- Deflicker is native only for interlaced TV output. KallistiOS turns on the PVR's vertical smoothing for interlaced non-VGA modes and turns it off for VGA and progressive modes. VGA stays sharp. Preview the 480i case with `--display composite --interlaced`.
+- Deflicker is native only for interlaced TV output. KallistiOS turns on the PVR's vertical smoothing for interlaced non-VGA modes and turns it off for VGA and progressive modes. VGA stays sharp. The composite and S-video previews include it by default; `--no-interlaced` turns it off.
 - Composite and S-video blur come from the cable and TV, not the game. Keep them as labeled opt-in simulations.
-- Bloom, depth blur, god rays, low internal resolution with upscaling, and full-screen color correction are full-frame passes. Use the geometry recipes in [effects](effects.md) instead: halo quads for glow, fog for distance, and [sun shafts](effects.md#sun-shafts) as additive geometry. A PS2-style look would be its own clearly labeled target, not the Dreamcast default.
+- Bloom, depth blur, god rays, low internal resolution with upscaling, and full-screen color correction are full-frame passes. Use the geometry recipes in [effects](effects.md) instead: halo quads for glow, fog for distance, and [sun shafts](effects.md#sun-shafts) as additive geometry. See the scope note below.
+
+### Scope: Dreamcast only
+
+This plugin targets the Dreamcast only. A PS2 look would be its own separate plugin or clearly labeled target, never the default. Only there would full-frame bloom, depth blur and god rays be allowed; they are never added to these Dreamcast skills, presets or previews.
+
+Yellow full-screen color correction is excluded because it reads as PS2, not Dreamcast, and is disputed as a sixth-gen feature at all. For warmth, use a warm fog color, a vertex tint or ambient gradient, or a palette-bank swap, as in [scene mood presets](effects.md#scene-mood-presets).
 
 ### Video output
 

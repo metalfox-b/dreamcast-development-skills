@@ -3,7 +3,7 @@
 
 Usage:
   preview_480.py --platform dc TEX [--tile U,V] [--repeat U,V] [--shade TOP,BOTTOM]
-                 [--mips] [--vq] [--fb16 [--no-dither]] [--display MODE [--interlaced]]
+                 [--mips] [--vq] [--fb16 [--no-dither]] [--display MODE [--no-interlaced]]
                  [--out PATH]
 
 Draws the texture at 64, 128 and 256 px on a 640x480 frame with bilinear
@@ -24,9 +24,11 @@ these, so the preview is the reference for style targets.
 Opt-in --display svideo|composite simulates a display chain, labels the image,
 and adds a simulation suffix even with --out. Never bake this into assets or use
 it as a capture. Default --display vga preserves the sharp preview.
---interlaced (svideo or composite only) adds the vertical smoothing that KOS
-enables for interlaced non-VGA modes: each line mixes 1-2-1 with the lines
-above and below. KOS disables it on VGA, so VGA rejects this flag.
+S-video and composite simulations are 480i by default: they add the vertical
+smoothing that KOS enables for interlaced non-VGA modes, where each line mixes
+1-2-1 with the lines above and below. --no-interlaced turns it off for a
+progressive TV mode; --interlaced is accepted and keeps the default. KOS
+disables the smoothing on VGA, so VGA rejects both flags.
 
 Writes <name>.preview.png beside TEX (or --out), at 2x with nearest scaling.
 """
@@ -188,7 +190,10 @@ def main() -> int:
     ap.add_argument("--vq", action="store_true")
     ap.add_argument("--fb16", action="store_true")
     ap.add_argument("--no-dither", action="store_true", help="with --fb16, RGB565 without dither")
-    ap.add_argument("--interlaced", action="store_true", help="flicker-filter smoothing for 480i simulations")
+    ap.add_argument("--interlaced", dest="interlaced", action="store_true", default=None,
+                    help="480i flicker-filter smoothing (default for svideo and composite)")
+    ap.add_argument("--no-interlaced", dest="interlaced", action="store_false",
+                    help="progressive simulation without flicker-filter smoothing")
     ap.add_argument("--display", choices=["vga", "svideo", "composite"], default="vga")
     ap.add_argument("--shadow-mask", action="store_true", help="optional Lottes-style mask for simulations")
     ap.add_argument("--out", type=Path)
@@ -198,8 +203,9 @@ def main() -> int:
         ap.error("--shadow-mask requires a display simulation")
     if args.no_dither and not args.fb16:
         ap.error("--no-dither requires --fb16")
-    if args.interlaced and args.display == "vga":
-        ap.error("--interlaced requires --display svideo or composite; KOS disables vertical smoothing on VGA")
+    if args.interlaced is not None and args.display == "vga":
+        ap.error("--interlaced and --no-interlaced require --display svideo or composite; KOS disables vertical smoothing on VGA")
+    interlaced = args.display != "vga" and args.interlaced is not False
     plat = platform_key(args.platform)
     modes = args.tile.split(",")
     if len(modes) != 2 or any(mode not in platform(plat)["tile_modes"] for mode in modes):
@@ -235,8 +241,8 @@ def main() -> int:
         frame = fb16(frame, dither=not args.no_dither)
     out = args.out or args.tex.with_name(stem_without_tag(args.tex) + ".preview.png")
     if args.display != "vga":
-        frame = display_simulation(frame, args.display, args.shadow_mask, args.interlaced)
-        out = out.with_name(out.stem + "." + args.display + ("-480i" if args.interlaced else "") + "-sim.png")
+        frame = display_simulation(frame, args.display, args.shadow_mask, interlaced)
+        out = out.with_name(out.stem + "." + args.display + ("-480i" if interlaced else "") + "-sim.png")
     frame.resize((1280, 960), Image.Resampling.NEAREST).save(out)
     print(f"wrote {out}  (640x480 frame at 2x; sizes {', '.join(map(str, SIZES))} px"
           f"{'; VQ simulated' if args.vq or (fmt and fmt.kind == 'vq') else ''}{'; RGB565 framebuffer' + (' without dither' if args.no_dither else '') if args.fb16 else ''})")
