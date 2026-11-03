@@ -3,7 +3,8 @@
 
 Usage:
   preview_480.py --platform dc TEX [--tile U,V] [--repeat U,V] [--shade TOP,BOTTOM]
-                 [--mips] [--vq] [--fb16] [--out PATH]
+                 [--mips] [--vq] [--fb16 [--no-dither]] [--display MODE [--interlaced]]
+                 [--out PATH]
 
 Draws the texture at 64, 128 and 256 px on a 640x480 frame with bilinear
 sampling: plain bilinear without --mips (so oversized textures shimmer, as on
@@ -17,10 +18,15 @@ these, so the preview is the reference for style targets.
              so the loss can be judged before pvrtex runs. Needs numpy.
 --fb16       write the frame through an RGB565 framebuffer with ordered
              dither. Actual display output depends on the game and video mode.
+--no-dither  with --fb16, snap to RGB565 without dither, for judging banding
+             when a game turns framebuffer dithering off (KOS vid_set_dithering).
 
 Opt-in --display svideo|composite simulates a display chain, labels the image,
 and adds a simulation suffix even with --out. Never bake this into assets or use
 it as a capture. Default --display vga preserves the sharp preview.
+--interlaced (svideo or composite only) adds the vertical smoothing that KOS
+enables for interlaced non-VGA modes: each line mixes 1-2-1 with the lines
+above and below. KOS disables it on VGA, so VGA rejects this flag.
 
 Writes <name>.preview.png beside TEX (or --out), at 2x with nearest scaling.
 """
@@ -107,11 +113,11 @@ def shade(img: Image.Image, top, bottom) -> Image.Image:
     return img
 
 
-def fb16(img: Image.Image) -> Image.Image:
+def fb16(img: Image.Image, dither: bool = True) -> Image.Image:
     px = img.load()
     for y in range(img.height):
         for x in range(img.width):
-            d = BAYER4[y % 4][x % 4] / 15 - 0.5
+            d = BAYER4[y % 4][x % 4] / 15 - 0.5 if dither else 0
             r, g, b = px[x, y][:3]
             px[x, y] = (snap(max(0, min(255, round(r + d * 8))), 5),
                         snap(max(0, min(255, round(g + d * 4))), 6),
@@ -129,8 +135,21 @@ def horizontal_filter(values, width, height, radius):
     return out
 
 
-def display_simulation(frame, display, shadow_mask=False):
+def vertical_smooth(frame: Image.Image) -> Image.Image:
+    """Original edge-clamped 1-2-1 vertical mix, an approximation of the PVR flicker filter."""
+    w, h = frame.size
+    rows = [list(frame.crop((0, y, w, y + 1)).convert('RGB').getdata()) for y in range(h)]
+    out = Image.new('RGB', frame.size)
+    out.putdata([tuple((a[c] + 2 * b[c] + d[c] + 2) // 4 for c in range(3))
+                 for y in range(h)
+                 for a, b, d in zip(rows[max(0, y - 1)], rows[y], rows[min(h - 1, y + 1)])])
+    return out
+
+
+def display_simulation(frame, display, shadow_mask=False, interlaced=False):
     """Original luma/chroma bandwidth approximation, not a signal decoder."""
+    if interlaced:
+        frame = vertical_smooth(frame)
     w, h = frame.size
     rgb = list(frame.convert('RGB').getdata())
     luma = [0.299*r+0.587*g+0.114*b for r, g, b in rgb]
@@ -154,7 +173,7 @@ def display_simulation(frame, display, shadow_mask=False):
     out.putdata(pixels)
     draw = ImageDraw.Draw(out)
     draw.rectangle((4, 4, 236, 22), fill='black')
-    draw.text((8, 8), 'DISPLAY SIMULATION: '+display, fill='white')
+    draw.text((8, 8), 'DISPLAY SIMULATION: '+display+(' 480i' if interlaced else ''), fill='white')
     return out
 
 
@@ -168,6 +187,8 @@ def main() -> int:
     ap.add_argument("--mips", action="store_true")
     ap.add_argument("--vq", action="store_true")
     ap.add_argument("--fb16", action="store_true")
+    ap.add_argument("--no-dither", action="store_true", help="with --fb16, RGB565 without dither")
+    ap.add_argument("--interlaced", action="store_true", help="flicker-filter smoothing for 480i simulations")
     ap.add_argument("--display", choices=["vga", "svideo", "composite"], default="vga")
     ap.add_argument("--shadow-mask", action="store_true", help="optional Lottes-style mask for simulations")
     ap.add_argument("--out", type=Path)
@@ -175,6 +196,10 @@ def main() -> int:
 
     if args.shadow_mask and args.display == "vga":
         ap.error("--shadow-mask requires a display simulation")
+    if args.no_dither and not args.fb16:
+        ap.error("--no-dither requires --fb16")
+    if args.interlaced and args.display == "vga":
+        ap.error("--interlaced requires --display svideo or composite; KOS disables vertical smoothing on VGA")
     plat = platform_key(args.platform)
     modes = args.tile.split(",")
     if len(modes) != 2 or any(mode not in platform(plat)["tile_modes"] for mode in modes):
@@ -207,14 +232,14 @@ def main() -> int:
         frame.paste(tile, (x, (480 - sh) // 2), tile)
         x += sw + 32
     if args.fb16:
-        frame = fb16(frame)
+        frame = fb16(frame, dither=not args.no_dither)
     out = args.out or args.tex.with_name(stem_without_tag(args.tex) + ".preview.png")
     if args.display != "vga":
-        frame = display_simulation(frame, args.display, args.shadow_mask)
-        out = out.with_name(out.stem + "." + args.display + "-sim.png")
+        frame = display_simulation(frame, args.display, args.shadow_mask, args.interlaced)
+        out = out.with_name(out.stem + "." + args.display + ("-480i" if args.interlaced else "") + "-sim.png")
     frame.resize((1280, 960), Image.Resampling.NEAREST).save(out)
     print(f"wrote {out}  (640x480 frame at 2x; sizes {', '.join(map(str, SIZES))} px"
-          f"{'; VQ simulated' if args.vq or (fmt and fmt.kind == 'vq') else ''}{'; RGB565 framebuffer' if args.fb16 else ''})")
+          f"{'; VQ simulated' if args.vq or (fmt and fmt.kind == 'vq') else ''}{'; RGB565 framebuffer' + (' without dither' if args.no_dither else '') if args.fb16 else ''})")
     return 0
 
 

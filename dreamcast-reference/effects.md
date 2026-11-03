@@ -16,6 +16,14 @@ Use `dreamcast-texture/scripts/fit_card_hull.py` on textured halo cards to reduc
 
 Use a chain of small textured quads along the line from the projected light toward the screen center. The exact placement is a design choice and should respond to visibility. [Practitioner example](https://x.com/rogerioperdiz/status/2093738691063656702).
 
+## Sun shafts
+
+Build shafts as geometry, not a full-screen radial blur. Use a few long additive or translucent quads, or a thin open cone, from the sun or window toward the ground. Put the brightest vertex color at the source and fade alpha to zero at the far end and the edges; fog can finish the fade. Fade the whole set with the same visibility test as the lens flare, so shafts drop out when the sun is blocked. Keep screen coverage small and check overlap in `pvr_get_stats()`, because every shaft is translucent fill. Desktop and PS2-style god rays take many samples of a downscaled frame toward the sun, which needs render-to-texture memory and full-screen translucent passes; see [era contrast](platforms.md#era-contrast). Idea credit: gsimone's [sixth-gen frame thread](https://x.com/ggsimm/status/2117695690373517750), which shows the full-frame version this recipe replaces.
+
+## Shell fur and grass
+
+Draw a short stack of offset copies of a mesh ("shells"), each pushed out along the normals and textured with a noise mask that thins toward the tips. Lengyel and colleagues described the method in 2001. On Dreamcast, use punch-through shells (1-bit alpha cutout, a PAL4 or ARGB1555 mask) so the PVR sorts them cheaply, and keep the count low, often 3 to 6. Reserve translucent shells for a hero object, since every shell overlaps the last. Cost grows with shell count times covered screen area; measure with `pvr_get_stats()` in a close-up. Fade or drop shells with distance, and use a painted texture on the base mesh for far views. Idea credit: the fur on gsimone's demo in the [sixth-gen frame thread](https://x.com/ggsimm/status/2117695690373517750).
+
 ## Fog
 
 Use the PVR fog table or supported per-vertex fog to blend distant geometry into the horizon. Expose the color and distances during tuning; test on hardware. [KOS fog API](https://kos-docs.dreamcast.wiki/group__pvr__fog.html); [practitioner example](https://x.com/EliasDaler/status/2107289196821942690).

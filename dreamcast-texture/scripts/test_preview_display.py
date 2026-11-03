@@ -6,7 +6,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from PIL import Image, ImageDraw
-from preview_480 import scaled, tiled, display_simulation
+from preview_480 import scaled, tiled, display_simulation, vertical_smooth, fb16
 from validate_textures import collect
 
 
@@ -62,6 +62,59 @@ class PreviewDisplay(unittest.TestCase):
         self.assertNotEqual(composite.tobytes(), svideo.tobytes())
         masked = display_simulation(frame, 'composite', True)
         self.assertNotEqual(masked.crop((0, 24, 64, 32)).tobytes(), composite.crop((0, 24, 64, 32)).tobytes())
+
+
+class InterlaceAndBanding(unittest.TestCase):
+    def test_vertical_smooth_mixes_neighbour_lines_121(self):
+        frame = Image.new('RGB', (2, 4))
+        rows = [0, 200, 40, 120]
+        frame.putdata([(v, v, v) for v in rows for _ in range(2)])
+        out = vertical_smooth(frame)
+        # Edge-clamped (above + 2*centre + below) / 4, rounded: worked by hand.
+        expected = [(0+0+200+2)//4, (0+400+40+2)//4, (200+80+120+2)//4, (40+240+120+2)//4]
+        self.assertEqual([out.getpixel((0, y))[0] for y in range(4)], expected)
+        self.assertEqual([out.getpixel((1, y)) for y in range(4)], [(v, v, v) for v in expected])
+
+    def test_interlaced_simulation_differs_and_is_labelled(self):
+        frame = Image.new('RGB', (240, 32))
+        frame.putdata([((255, 255, 255) if y % 2 else (0, 0, 0)) for y in range(32) for x in range(240)])
+        progressive = display_simulation(frame, 'composite')
+        interlaced = display_simulation(frame, 'composite', interlaced=True)
+        # One-line stripes flatten under the flicker filter, so neighbouring rows converge.
+        below_label = (0, 24, 240, 32)
+        p = progressive.crop(below_label).convert('L')
+        i = interlaced.crop(below_label).convert('L')
+        spread = lambda img: abs(img.getpixel((120, 4)) - img.getpixel((120, 5)))
+        self.assertGreater(spread(p), 150)
+        self.assertLess(spread(i), 40)
+        label = Image.new('RGB', (232, 18), 'black')
+        ImageDraw.Draw(label).text((4, 4), 'DISPLAY SIMULATION: composite 480i', fill='white')
+        self.assertEqual(interlaced.crop((4, 4, 236, 22)).tobytes(), label.tobytes())
+
+    def test_no_dither_is_plain_rgb565_snap(self):
+        frame = Image.new('RGB', (8, 8))
+        frame.putdata([(x*9+y, 100+x*3, 255-y*7) for y in range(8) for x in range(8)])
+        banded = fb16(frame.copy(), dither=False)
+        def snap(v, bits):  # reference: nearest of the 2**bits evenly spaced levels
+            top = 2**bits - 1
+            return round(round(v*top/255)*255/top)
+        self.assertEqual(list(banded.getdata()), [(snap(r, 5), snap(g, 6), snap(b, 5)) for r, g, b in frame.getdata()])
+        self.assertNotEqual(banded.tobytes(), fb16(frame.copy()).tobytes())
+
+    def test_cli_flag_rules_and_outputs(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root/'s.png'
+            Image.new('RGBA', (16, 16), (200, 80, 40, 255)).save(source)
+            cmd = [sys.executable, str(Path(__file__).with_name('preview_480.py')), str(source)]
+            bad = subprocess.run(cmd+['--interlaced'], capture_output=True, text=True)
+            self.assertNotEqual(bad.returncode, 0)
+            self.assertIn('VGA', bad.stderr)
+            self.assertNotEqual(subprocess.run(cmd+['--no-dither'], capture_output=True).returncode, 0)
+            ok = subprocess.run(cmd+['--display', 'svideo', '--interlaced', '--fb16', '--no-dither'], capture_output=True, text=True)
+            self.assertEqual(ok.returncode, 0, ok.stderr)
+            self.assertTrue((root/'s.preview.svideo-480i-sim.png').exists())
+            self.assertIn('without dither', ok.stdout)
 
 
 if __name__ == '__main__':
