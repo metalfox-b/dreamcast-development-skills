@@ -25,6 +25,14 @@ These links point to external material; its authors retain their rights. The soc
 - [Mirror geometry](https://x.com/EliasDaler/status/2102774838188220526), [halo geometry](https://x.com/EliasDaler/status/2108889722668069012), [Gouraud bloom](https://x.com/EliasDaler/status/2084814994739167645), [fog](https://x.com/EliasDaler/status/2107289196821942690), and [vertex-color paintings](https://x.com/EliasDaler/status/2104550107777740868).
 - [Rogério Perdiz on lens-flare geometry](https://x.com/rogerioperdiz/status/2093738691063656702).
 
+## Autotiling
+
+See [autotiling](autotiling.md) for the Dreamcast tile-layer notes and `autotile.py`.
+
+- [asynkimo on Wang tiles for tiled ground](https://x.com/asynkimo/status/2117697739157041432).
+- [Boris the Brave, Classification of Tilesets](https://www.boristhebrave.com/2021/11/14/classification-of-tilesets/) and his [archive of the cr31 blob page](https://www.boristhebrave.com/permanent/24/06/cr31/stagecast/wang/blob.html), the source of the published 47-mask list used in the tests. The original cr31.co.uk pages no longer load.
+- [Oskar Stålberg, Beyond Townscapers](https://www.youtube.com/watch?v=Uxeo9c-PX-w) and [jess::codes, dual-grid tiles](https://www.youtube.com/watch?v=jEWFSv3ivTg).
+
 ## Display chain and full-frame references
 
 These were listed in gsimone's [sources gist](https://gist.github.com/gsimone/76bdcd34fd642349e24ef77cfb85bb62) for the [sixth-gen frame thread](https://x.com/ggsimm/status/2117695690373517750). They inform era contrast and the display simulations; no code was taken.
@@ -49,6 +57,7 @@ The 6 MiB default texture budget, suggested asset sizes, and other working budge
 - Display-chain previews: [CRT post](https://x.com/ggsimm/status/2113938086807715841) and [frame-processing post](https://x.com/ggsimm/status/2117347384070164890).
 - Dreamcast scene mood presets: [mood-accurate post](https://x.com/ggsimm/status/2117302468035928324).
 - Display-chain facts, sun shafts, shell fur, banding previews and effect-by-effect capture review: [sixth-gen frame thread](https://x.com/ggsimm/status/2117695690373517750).
+- Autotiling: [asynkimo](https://x.com/asynkimo/status/2117697739157041432), Boris the Brave and the cr31 blob page, Oskar Stålberg and jess::codes, idea only.
 - Era contrast: [frame processing](https://x.com/ggsimm/status/2117347384070164890) and [fill discussion](https://x.com/ggsimm/status/2117342373747298342).
 
 No code or text from gsimone's repositories was copied.

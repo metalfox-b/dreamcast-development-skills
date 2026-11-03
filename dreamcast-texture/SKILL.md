@@ -46,6 +46,16 @@ Card hulls cover whole pixels whose alpha is strictly above the threshold. The o
 
 The image comparison requires equal dimensions and never resizes. Its unamplified RGB difference PNG and JSON record zero-tolerance decoded-byte errors, input SHA-256 hashes and repeated `--meta key=value` evidence. Alpha is excluded unless `--include-alpha` is set; then errors include alpha and a separate `.alpha.png` shows its unamplified difference. `exact` means zero differing selected bytes; it does not establish hardware accuracy. Use aligned captures with matching settings and record differences in device or capture chain. Method idea: gsimone's typegpu-crt-shaders.
 
+## Tile sheets and autotiling
+
+```sh
+python3 scripts/autotile.py plan --set blob --tile 32 --format pal4 --gutter 1
+python3 scripts/autotile.py map level.txt --set corner
+python3 scripts/autotile.py table blob
+```
+
+`plan` sizes a power-of-two sheet for a 16-tile corner or edge set or a 47-tile blob set, then estimates its memory. `map` turns a `#` grid into tile indices; `table` prints the lookups for the game. Read [autotiling](../dreamcast-reference/autotiling.md) for render lists, filtering bleed, palette banks and per-layer quad counts.
+
 ## Display simulations and scene moods
 
 `preview_480.py --display vga` is the unchanged default: a sharp 640x480 frame saved at 2x. Opt-in `--display svideo` or `--display composite` separates luma and chroma, softens chroma horizontally more than luma, and adds light scanlines. These are display simulations, not calibrated signal emulation. Optional `--shadow-mask` uses a Lottes-style aperture grille. The image carries a visible DISPLAY SIMULATION label and a `.svideo-480i-sim.png` or `.composite-480i-sim.png` suffix (`.svideo-sim.png` or `.composite-sim.png` with `--no-interlaced`), including with `--out`. `validate_textures.py` skips every `-sim.png` file. Never bake simulations into assets or use them as captures. No LUTs or Hyllian math are used.

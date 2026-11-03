@@ -6,7 +6,7 @@ Four agent skills for building native Sega Dreamcast games and creating their as
 - **dreamcast-asset**: asset briefs, budgets, modeling, textures, effects, export, and capture.
 - **dreamcast-model-check**: Blender checks against a project budget and a starting vertex-color bake.
 - **dreamcast-texture**: Dreamcast PNG preparation, memory estimates, previews, and conversion guidance.
-- **dreamcast-reference**: shared platform notes, source citations, budgets, and effect recipes used by the skills.
+- **dreamcast-reference**: shared platform notes, source citations, budgets, effect recipes, and autotiling notes used by the skills.
 
 The package targets the Dreamcast only. It does not include a game engine, the KallistiOS SDK, a cross compiler, an emulator, or a universal model exporter. Use the project's own tools and loader. A passing host-side check or an emulator run does not prove an asset works on a physical console.
 
@@ -46,6 +46,7 @@ python3 dreamcast-texture/scripts/test_fit_card_hull.py
 python3 dreamcast-texture/scripts/test_compare_images.py
 python3 dreamcast-texture/scripts/test_preview_display.py
 python3 dreamcast-texture/scripts/test_validate_mood_preset.py
+python3 dreamcast-texture/scripts/test_autotile.py
 python3 dreamcast-dev/scripts/test_toolchain_lock.py
 python3 dreamcast-dev/scripts/test_capture_contact_sheet.py
 ```

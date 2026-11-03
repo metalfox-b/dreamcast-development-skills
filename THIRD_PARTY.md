@@ -4,6 +4,7 @@
 - Hyllian, CRT Hyllian (`crt/shaders/hyllian/crt-hyllian-base.slang`, same commit), MIT: reviewed as a reference only. No Hyllian code or math is used in the shipped tools.
 - KallistiOS: its PVR init source was read (as facts only) to confirm when vertical smoothing and framebuffer dither are enabled. No KOS code is included; the preview's 1-2-1 vertical mix is original Python.
 - Cathode-Retro by DeadlyRedCube (Boost Software License 1.0): listed as a reference only. No code is used.
+- Autotiling tools named in [autotiling](dreamcast-reference/autotiling.md), checked Nov 3, 2026 and not bundled or copied: Tiled (editor and plugins GPL version 2, libtiled and tmx tools BSD 2-clause), Godot (MIT), LDtk (MIT), Pixelorama (MIT), LibreSprite (GPL version 2). Aseprite (proprietary EULA, paid) is named only as not recommended. `autotile.py` is original; the blob method and 47-mask list are credited to the cr31 page as archived by Boris the Brave.
 - gsimone and Project Nayuki receive idea credits in [sources](dreamcast-reference/sources.md#credits). No code or text from gsimone's repositories or Nayuki's implementation is included.
 
 Pillow, optional NumPy, ffmpeg and ffprobe are external dependencies, not bundled here; their own licenses apply.
